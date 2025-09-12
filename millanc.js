@@ -7842,6 +7842,7 @@ function makeStyle() {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    z-index: 10;
   }
 }
 `
@@ -8001,6 +8002,9 @@ function convertImage() {
     let promises = []
     let progress = Array(CONFIG.num_workers).fill(0)
 
+    state.progress = 0
+    updateProgress()
+
     for (let i = 0; i < CONFIG.num_workers; i++) {
         let startRow = i * rowsPerWorker
         let endRow =
@@ -8017,7 +8021,6 @@ function convertImage() {
             type: "application/javascript",
         })
         let worker = new Worker(URL.createObjectURL(workerBlob))
-        state.progress = 0
 
         promises.push(
             new Promise((resolve) => {
@@ -8161,8 +8164,9 @@ function workerFunc() {
             slice[i + 2] = nb
 
             done++
-            if (done % 10000 === 0)
+            if (done % 100000 === 0) {
                 self.postMessage({ type: "progress", done, total })
+            }
         }
 
         self.postMessage({ type: "done", slice })
@@ -8170,12 +8174,9 @@ function workerFunc() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    // If the browser supports hardware concurrency, use that.
-    // Otherwise default to 4 workers.
-    // These are used for image processing.
     CONFIG.num_workers = navigator.hardwareConcurrency
         ? navigator.hardwareConcurrency - 1
-        : 4
+        : 1
 
     render()
 })
