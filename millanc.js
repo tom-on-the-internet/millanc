@@ -7589,10 +7589,6 @@ const CONFIG = {
     },
 }
 
-/**
- * Application state that will change over time.
- * Not a lot of state, really.
- */
 let state = freshState()
 
 function makeSearchableDropdown() {
@@ -7723,7 +7719,6 @@ function makeStyle() {
     style.textContent = `
 #millanc {
   position: relative;
-  font-family: monospace;
 
   canvas {
     display: block;
@@ -7736,24 +7731,21 @@ function makeStyle() {
     transition: all 0.2s ease;
 
     &.processing {
-        filter: blur(5px) brightness(0.7);
-        border-color: rgba(255, 255, 255, 0.1);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      filter: blur(5px) brightness(0.7);
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
   }
 
-  #control-panel {
-    position: absolute;
+  #millanc-control-panel {
+    margin-bottom: 10px;
+    gap: 10px;
     display: flex;
-    gap: 15px;
-    top: 15px;
-    left: 15px;
-    z-index: 10;
+    flex-wrap: wrap;
   }
 
   button {
-    font-size: 30px;
-    font-family: monospace;
+    font-family: system-ui;
     color: white;
     background-color: rgba(51, 51, 51, 0.8);
     padding: 8px 16px;
@@ -7770,10 +7762,7 @@ function makeStyle() {
 
   select {
     appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
     padding: 0.5rem 2.5rem 0.5rem 0.75rem;
-    font-size: 30px;
     cursor: pointer;
     color: white;
     background-color: rgba(51, 51, 51, 0.8);
@@ -7782,7 +7771,6 @@ function makeStyle() {
     background-image: url("data:image/svg+xml;utf8,<svg fill='white' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M7 10l5 5 5-5z'/></svg>");
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
-    background-size: 1.25rem;
     transition: all 0.2s ease;
 
     &:hover {
@@ -7797,8 +7785,6 @@ function makeStyle() {
 
     .dropdown-input {
       padding: 0.5rem 0.75rem;
-      font-size: 30px;
-      font-family: monospace;
       color: white;
       background-color: rgba(51, 51, 51, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.2);
@@ -7811,6 +7797,10 @@ function makeStyle() {
       &:hover {
         background-color: rgba(51, 51, 51, 0.95);
         border-color: rgba(255, 255, 255, 0.5);
+      }
+
+      &::placeholder {
+        color: white;
       }
     }
 
@@ -7829,8 +7819,6 @@ function makeStyle() {
 
       .dropdown-item {
         padding: 0.5rem 0.75rem;
-        font-size: 30px;
-        font-family: monospace;
         color: white;
         cursor: pointer;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -7847,22 +7835,13 @@ function makeStyle() {
     }
   }
 
-  #progress,
-  #upload-button {
+  #millanc-progress {
+    font-size: 50px;
+    text-shadow: 0 0 5px black;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: white;
-  }
-
-  #progress {
-    font-size: 50px;
-    text-shadow: 0 0 5px black;
-  }
-
-  #upload-button {
-    font-size: 25px;
   }
 }
 `
@@ -7871,13 +7850,13 @@ function makeStyle() {
 
 function makeCanvas() {
     let canvas = document.createElement("canvas")
-
     let image = state.convertedImage ?? state.uploadedImage
 
     // If no image, make a default size canvas.
     if (!image) {
-        canvas.width = window.innerWidth - 50
-        canvas.height = Math.floor((canvas.width * 1) / 4)
+        let width = Math.max(100, state.millancContainer.offsetWidth)
+        canvas.width = width
+        canvas.height = Math.floor(width / 4)
         return canvas
     }
 
@@ -7896,21 +7875,16 @@ function makeCanvas() {
  */
 function makeControlPanel() {
     let controlPanel = document.createElement("div")
-    controlPanel.id = "control-panel"
-
-    if (state.uploadedImage) {
-        let paletteDropdown = makeSearchableDropdown()
-        controlPanel.appendChild(paletteDropdown)
-    }
+    controlPanel.id = "millanc-control-panel"
 
     if (!state.uploadedImage) {
         let uploadButton = document.createElement("button")
-        uploadButton.id = "upload-button"
+        uploadButton.id = "millanc-upload-button"
         uploadButton.textContent = CONFIG.buttons.upload
         uploadButton.addEventListener("click", () => {
             let input = document.createElement("input")
             input.type = "file"
-            input.accept = "image/*"
+            input.accept = "image/png, image/jpeg, image/webp, image/avif"
             input.onchange = (event) => {
                 let file = event.target.files[0]
                 if (!file) return
@@ -7929,10 +7903,19 @@ function makeControlPanel() {
             }
             input.click()
         })
-        state.millancContainer.appendChild(uploadButton)
+        controlPanel.appendChild(uploadButton)
+        return controlPanel
     }
 
-    if (state.convertedImage) {
+    let paletteDropdown = makeSearchableDropdown()
+    controlPanel.appendChild(paletteDropdown)
+
+    let resetButton = document.createElement("button")
+    resetButton.textContent = CONFIG.buttons.clear
+    resetButton.addEventListener("click", clear)
+    controlPanel.appendChild(resetButton)
+
+    if (state.currentPalette !== "original") {
         let downloadButton = document.createElement("button")
         downloadButton.textContent = CONFIG.buttons.download
         downloadButton.addEventListener("click", () => {
@@ -7949,13 +7932,6 @@ function makeControlPanel() {
         controlPanel.appendChild(downloadButton)
     }
 
-    if (state.uploadedImage) {
-        let resetButton = document.createElement("button")
-        resetButton.textContent = CONFIG.buttons.clear
-        resetButton.addEventListener("click", clear)
-        controlPanel.appendChild(resetButton)
-    }
-
     return controlPanel
 }
 
@@ -7964,10 +7940,10 @@ function makeControlPanel() {
  * but for progress updates we just update the text.
  */
 function updateProgress() {
-    let progressText = state.millancContainer.querySelector("#progress")
+    let progressText = state.millancContainer.querySelector("#millanc-progress")
     if (!progressText) {
         progressText = document.createElement("div")
-        progressText.id = "progress"
+        progressText.id = "millanc-progress"
         state.millancContainer.appendChild(progressText)
     }
 
@@ -7984,9 +7960,9 @@ function clear() {
  */
 function render() {
     state.millancContainer.innerHTML = ""
-    state.millancContainer.appendChild(makeCanvas())
-    state.millancContainer.appendChild(makeControlPanel())
     state.millancContainer.appendChild(makeStyle())
+    state.millancContainer.appendChild(makeControlPanel())
+    state.millancContainer.appendChild(makeCanvas())
 }
 
 /**
