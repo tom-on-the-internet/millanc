@@ -39,25 +39,23 @@ function makeSearchableDropdown() {
     container.className = "searchable-dropdown"
 
     let input = document.createElement("input")
+    input.className = "dropdown-input"
     input.type = "text"
     input.placeholder =
         state.currentPalette === "original"
             ? "Choose a palette"
             : state.currentPalette
-    input.className = "dropdown-input"
 
     let dropdown = document.createElement("div")
     dropdown.className = "dropdown-list"
     dropdown.style.display = "none"
 
-    let options = []
-    for (let name in config.palettes) {
-        options.push({
+    let options = Object.keys(config.palettes)
+        .map((name) => ({
             value: name,
             text: state.cache[name] ? name + " ✔︎" : name,
-        })
-    }
-    options.sort((a, b) => a.text.localeCompare(b.text))
+        }))
+        .sort((a, b) => a.text.localeCompare(b.text))
     options.unshift({ value: "original", text: "original" })
 
     let selectedIndex = -1
@@ -69,7 +67,7 @@ function makeSearchableDropdown() {
             opt.text.toLowerCase().includes(filter.toLowerCase())
         )
 
-        filtered.forEach((opt, index) => {
+        filtered.forEach((opt) => {
             let item = document.createElement("div")
             item.className = "dropdown-item"
             item.textContent = opt.text
@@ -96,9 +94,8 @@ function makeSearchableDropdown() {
         }
     }
 
-    function updateSelection(filtered) {
-        let items = dropdown.querySelectorAll(".dropdown-item")
-        items.forEach((item, index) => {
+    function updateSelection() {
+        dropdown.querySelectorAll(".dropdown-item").forEach((item, index) => {
             item.classList.toggle("selected", index === selectedIndex)
         })
     }
@@ -106,21 +103,19 @@ function makeSearchableDropdown() {
     input.addEventListener("focus", () => {
         dropdown.style.display = "block"
         input.value = state.searchTerm
-        let filtered = renderOptions(input.value)
-        updateSelection(filtered)
+        renderOptions(input.value)
+        updateSelection()
     })
 
     input.addEventListener("input", (e) => {
-        let filtered = renderOptions(e.target.value)
         dropdown.style.display = "block"
-        updateSelection(filtered)
+        renderOptions(e.target.value)
+        updateSelection()
     })
 
-    input.addEventListener("blur", (e) => {
-        setTimeout(() => {
-            dropdown.style.display = "none"
-        }, 200)
-    })
+    input.addEventListener("blur", () =>
+        setTimeout(() => (dropdown.style.display = "none"), 200)
+    )
 
     input.addEventListener("keydown", (e) => {
         let filtered = options.filter((opt) =>
@@ -130,11 +125,11 @@ function makeSearchableDropdown() {
         if (e.key === "ArrowDown") {
             e.preventDefault()
             selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1)
-            updateSelection(filtered)
+            updateSelection()
         } else if (e.key === "ArrowUp") {
             e.preventDefault()
             selectedIndex = Math.max(selectedIndex - 1, -1)
-            updateSelection(filtered)
+            updateSelection()
         } else if (e.key === "Enter") {
             e.preventDefault()
             if (selectedIndex >= 0 && filtered[selectedIndex]) {
